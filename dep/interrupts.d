@@ -1,2 +1,2 @@
-obj/interrupts.o\ dep/interrupts.d: src/interrupts.asm
+obj/interrupts.o dep/interrupts.d: src/interrupts.asm
 

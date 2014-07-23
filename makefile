@@ -14,6 +14,8 @@ mtask: $(OBJECTS)
 	mkdir -p iso/boot/grub
 	cp mtask iso/boot/
 	cp boot/stage2_eltorito boot/menu.lst iso/boot/grub/
+	sudo apt-get install nasm
+	sudo apt-get install mkisofs
 	mkisofs -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -boot-info-table -o mtask.iso iso
 
 .PHONY: clean

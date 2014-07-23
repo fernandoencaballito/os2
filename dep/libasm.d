@@ -1,2 +1,2 @@
-obj/libasm.o\ dep/libasm.d: src/libasm.asm
+obj/libasm.o dep/libasm.d: src/libasm.asm
 

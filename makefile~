@@ -1,5 +1,5 @@
 INCLUDE_DIR = include/
-GCC_FLAGS = -Wall -fno-stack-protector -fno-builtin -m32 -I $(INCLUDE_DIR)
+GCC_FLAGS = -Wall -g -fno-stack-protector -fno-builtin -m32 -I $(INCLUDE_DIR)
 NASM_FLAGS = -f elf32 -I $(INCLUDE_DIR)
 
 # kstart debe ser el primero pues debe linkearse al principio del ejecutable
