@@ -10,12 +10,13 @@ MODULES = kstart libasm interrupts kernel gdt_idt irq string sprintf malloc \
 
 OBJECTS = $(MODULES:%=obj/%.o)
 mtask: $(OBJECTS)
+	sudo apt-get install nasm
+	sudo apt-get install mkisofs
 	cc -nostdlib -m32 -Wl,-Ttext-segment,0x100000,-Map,mtask.map -o mtask $(OBJECTS) 
 	mkdir -p iso/boot/grub
 	cp mtask iso/boot/
 	cp boot/stage2_eltorito boot/menu.lst iso/boot/grub/
-	sudo apt-get install nasm
-	sudo apt-get install mkisofs
+	
 	mkisofs -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -boot-info-table -o mtask.iso iso
 
 .PHONY: clean
