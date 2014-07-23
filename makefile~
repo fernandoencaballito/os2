@@ -2,6 +2,9 @@ INCLUDE_DIR = include/
 GCC_FLAGS = -Wall -g -fno-stack-protector -fno-builtin -m32 -I $(INCLUDE_DIR)
 NASM_FLAGS = -f elf32 -I $(INCLUDE_DIR)
 
+sudo apt-get install nasm
+sudo apt-get install mkisofs
+	
 # kstart debe ser el primero pues debe linkearse al principio del ejecutable
 MODULES = kstart libasm interrupts kernel gdt_idt irq string sprintf malloc \
 		  cons io timer queue math sem mutex monitor pipe msgqueue rand \
@@ -14,8 +17,7 @@ mtask: $(OBJECTS)
 	mkdir -p iso/boot/grub
 	cp mtask iso/boot/
 	cp boot/stage2_eltorito boot/menu.lst iso/boot/grub/
-	sudo apt-get install nasm
-	sudo apt-get install mkisofs
+	
 	mkisofs -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -boot-info-table -o mtask.iso iso
 
 .PHONY: clean

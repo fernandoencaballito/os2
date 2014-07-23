@@ -2,6 +2,7 @@ INCLUDE_DIR = include/
 GCC_FLAGS = -Wall -g -fno-stack-protector -fno-builtin -m32 -I $(INCLUDE_DIR)
 NASM_FLAGS = -f elf32 -I $(INCLUDE_DIR)
 
+	
 # kstart debe ser el primero pues debe linkearse al principio del ejecutable
 MODULES = kstart libasm interrupts kernel gdt_idt irq string sprintf malloc \
 		  cons io timer queue math sem mutex monitor pipe msgqueue rand \
@@ -10,12 +11,12 @@ MODULES = kstart libasm interrupts kernel gdt_idt irq string sprintf malloc \
 
 OBJECTS = $(MODULES:%=obj/%.o)
 mtask: $(OBJECTS)
-	sudo apt-get install nasm
-	sudo apt-get install mkisofs
 	cc -nostdlib -m32 -Wl,-Ttext-segment,0x100000,-Map,mtask.map -o mtask $(OBJECTS) 
 	mkdir -p iso/boot/grub
 	cp mtask iso/boot/
 	cp boot/stage2_eltorito boot/menu.lst iso/boot/grub/
+	
+	sudo apt-get install mkisofs
 	
 	mkisofs -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -boot-info-table -o mtask.iso iso
 
@@ -25,6 +26,7 @@ clean:
 	rm -rf iso
 
 obj/%.o: src/%.asm
+	sudo apt-get install nasm
 	nasm $(NASM_FLAGS) $< -o $@
 
 obj/%.o: src/%.c
@@ -39,6 +41,7 @@ dep/%.d: src/%.c
 	cc $(GCC_FLAGS) $< -MM -MT 'obj/$*.o $@' > $@
 
 dep/%.d: src/%.asm
+	sudo apt-get install nasm
 	nasm $(NASM_FLAGS) $< -M -o 'obj/$*.o $@' > $@
 
 DEPS = $(MODULES:%=dep/%.d)
