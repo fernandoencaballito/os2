@@ -4,6 +4,18 @@
 #include "mtask.h"
 #include "segments.h"
 
+// TODO VER DONDE VAN ESTOS DEFINE, SEGURO ESTAN REPETIDOS!
+//constantes de la pantalla de video
+
+#define NUMROWS 24//disponibles para las consolas,no incluye barra superior
+#define NUMCOLS 80
+#define ABSROWS NUMROWS+1// filas totales, solo accesibles para el mouse
+#define VIDMEM 0xB8000
+
+typedef unsigned short row[NUMCOLS];
+extern row *vidmem ;
+
+
 /* gdt_idt.c */
 
 void mt_setup_gdt_idt(void);
@@ -46,8 +58,7 @@ bool mt_select_task(void);
 // Esta estructura debe mantenerse sincronizada con el código de resguardo y
 // recuperación de contexto en el manejador de interrupciones (interrupts.asm)
 // y con la función mt_context_switch() (libasm.asm).
-typedef struct
-{
+typedef struct{
 	unsigned ebp;
 	unsigned edi;
 	unsigned esi;
@@ -74,8 +85,7 @@ void mt_disable_irq(unsigned irq);
 
 /* cons.c */
 
-enum COLORS
-{
+enum COLORS{
 	/* oscuros */
 	BLACK,
 	BLUE,
@@ -115,11 +125,34 @@ bool mt_cons_raw(bool on);
 void mt_cons_putc(char ch);
 void mt_cons_puts(const char *str);
 
+void putDirectly( char ch);
+void putTty( char ch);
+
+void tty_run(void *arg);
+void initialize_tty(Tty *ttyp);
+void switch_focus(int tty_num);
+void mt_setup_ttys(void);
+
+// funcion que imprime la barra superior en la que se encuentra los botones para seleccionar las consolas con el mouse. 
+//tambien se encarga de mover el puntero al comienzo de la memoria de vide(vidmem) para que la barra superior quede fija arriba.
+void mt_printMainBar(void);
+
 void mt_cons_cr(void);
 void mt_cons_nl(void);
 void mt_cons_tab(void);
 void mt_cons_bs(void);
 
+typedef enum{OFF, ON} state;
+//mouse
+
+void mt_mouse_init(void);
+void printMainBar(void);
+void clearAllTabs();
+
+void setInitialPosition(void);
+void turnOffMouse();
+void turnOnMouse();
+void turnOnOFFTab(state s,int i);
 /* keyboard.c */ 
 
 void mt_kbd_init(void);

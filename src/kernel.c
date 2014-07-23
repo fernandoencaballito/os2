@@ -7,6 +7,8 @@
 #define MSPERTICK 		20				/* 50 Hz */
 #define QUANTUM			2				/* 40 mseg */
 
+
+extern bool firtPrint;
 Task_t * volatile mt_curr_task;			/* tarea en ejecucion */
 Task_t * volatile mt_last_task;			/* tarea anterior */
 Task_t * volatile mt_fpu_task;			/* tarea que tiene el coprocesador */
@@ -32,11 +34,10 @@ static void do_nothing(void *arg);		/* funcion de la tarea nula */
 static void clockint(unsigned irq);		/* manejador interrupcion de timer */
 
 // Stackframe inicial de una tarea
-typedef struct
-{
-	mt_regs_t		regs;
-	void			(*retaddr)(void);
-	void *			arg;
+typedef struct{
+    mt_regs_t		regs;
+    void			(*retaddr)(void);
+    void *			arg;
 }
 InitialStack_t;
 
@@ -153,8 +154,7 @@ a Ready().
 */
 
 Task_t *
-CreateTask(TaskFunc_t func, unsigned stacksize, void *arg, char *name, unsigned priority)
-{
+CreateTask(TaskFunc_t func, unsigned stacksize, void *arg, char *name, unsigned priority){
 	Task_t *task;
 	InitialStack_t *s;
 
@@ -163,21 +163,22 @@ CreateTask(TaskFunc_t func, unsigned stacksize, void *arg, char *name, unsigned 
 	task->name = task->send_queue.name = StrDup(name);
 	task->priority = priority;
 
-	/* alocar stack */
-	stacksize &= ~3;					// redondear a multiplos de 4
-	if ( stacksize < MIN_STACK )		// garantizar tamaño mínimo
-		stacksize = MIN_STACK;
-	task->stack = Malloc(stacksize);	// malloc alinea adecuadamente
+    /* alocar stack */
+    stacksize &= ~3;					// redondear a multiplos de 4
+    if ( stacksize < MIN_STACK )		// garantizar tamaño mínimo
+        stacksize = MIN_STACK;
+    task->stack = Malloc(stacksize);	// malloc alinea adecuadamente
 
-	/* inicializar stack */
-	s = (InitialStack_t *)(task->stack + stacksize) - 1;
-	s->arg = arg;
-	s->retaddr = Exit;				/* direccion de retorno de func() */
-	s->regs.eflags = INIFL;
-	s->regs.eip = (unsigned) func;
-	task->esp = (unsigned) s;
+    /* inicializar stack */
+    s = (InitialStack_t *)(task->stack + stacksize) - 1;
+    s->arg = arg;
+    s->retaddr = Exit;				/* direccion de retorno de func() */
+    s->regs.eflags = INIFL;
+    s->regs.eip = (unsigned) func;
+    task->esp = (unsigned) s;
+    task->ttyp = mt_curr_task->ttyp;
 
-	return task;
+    return task;
 }
 
 /*
@@ -805,14 +806,12 @@ Unatomic - habilita el modo preemptivo para la tarea actual (anidable)
 */
 
 void
-Unatomic(void)
-{
-	if ( mt_curr_task->atomic_level && !--mt_curr_task->atomic_level )
-	{
-		DisableInts();
-		scheduler();
-		RestoreInts();
-	}
+Unatomic(void){
+    if ( mt_curr_task->atomic_level && !--mt_curr_task->atomic_level ){
+        DisableInts();
+        scheduler();
+        RestoreInts();
+    }
 }
 
 /*
@@ -822,10 +821,9 @@ DisableInts - deshabilita interrupciones para la tarea actual (anidable)
 */
 
 void
-DisableInts(void)
-{
-	if ( !mt_curr_task->disint_level++ )
-		mt_cli();
+DisableInts(void){
+    if ( !mt_curr_task->disint_level++ )
+        mt_cli();
 }
 
 /*
@@ -835,10 +833,9 @@ RestoreInts - habilita interrupciones para la tarea actual (anidable)
 */
 
 void
-RestoreInts(void)
-{
-	if ( mt_curr_task->disint_level && !--mt_curr_task->disint_level )
-		mt_sti();
+RestoreInts(void){
+    if ( mt_curr_task->disint_level && !--mt_curr_task->disint_level )
+        mt_sti();
 }
 
 /*
@@ -850,10 +847,9 @@ Corre con prioridad 0 y toma la CPU cuando ninguna otra tarea pueda ejecutar.
 */
 
 static void
-do_nothing(void *arg)
-{
-	while ( true )
-		;
+do_nothing(void *arg){
+    while ( true )
+        ;
 }
 
 /*
@@ -870,49 +866,56 @@ do_nothing(void *arg)
 */
 
 void
-mt_main(void)
-{
-	// Inicializar GDT e IDT
-	mt_setup_gdt_idt();
+mt_main(void){
+    // Inicializar GDT e IDT
+    mt_setup_gdt_idt();
 
-	// Inicializar sistema de interrupciones
-	mt_setup_interrupts();
+    // Inicializar sistema de interrupciones
+    mt_setup_interrupts();
 
-	// Configurar el timer, colocar el manejador de interrupción
-	// correspondiente y habilitar la interrupción
-	mt_setup_timer(MSPERTICK);
-	mt_set_int_handler(CLOCKIRQ, clockint);
-	mt_enable_irq(CLOCKIRQ);
+    // Configurar el timer, colocar el manejador de interrupción
+    // correspondiente y habilitar la interrupción
+    mt_setup_timer(MSPERTICK);
+    mt_set_int_handler(CLOCKIRQ, clockint);
+    mt_enable_irq(CLOCKIRQ);
 
-	// Inicializar el sistema de manejo del coprocesador aritmético
-	mt_setup_math();
+    // Inicializar el sistema de manejo del coprocesador aritmético
+    mt_setup_math();
 
-	// Inicializar tarea principal
-	main_task.name = "Main Task";
-	main_task.state = TaskCurrent;
-	main_task.priority = DEFAULT_PRIO;
-	main_task.send_queue.name = main_task.name;
-	mt_curr_task = &main_task;
-	ticks_to_run = QUANTUM;
+    // Inicializar tarea principal
+    main_task.name = "Main Task";
+    main_task.state = TaskCurrent;
+    main_task.priority = DEFAULT_PRIO;
+    main_task.send_queue.name = main_task.name;
+    mt_curr_task = &main_task;
+    ticks_to_run = QUANTUM;
 
-	// Crear tarea nula y ponerla ready 
-	ready(CreateTask(do_nothing, 0, NULL, "Null Task", MIN_PRIO), false);
+    // Crear tarea nula y ponerla ready 
+    ready(CreateTask(do_nothing, 0, NULL, "Null Task", MIN_PRIO), false);
 
-	// Habilitar interrupciones
-	mt_sti();
+    // Habilitar interrupciones
+    mt_sti();
 
-	// Borrar la pantalla
-	mt_cons_clear();
-	mt_cons_cursor(true);
+    // Inicializar driver de teclado
+    mt_kbd_init();
 
-	// Inicializar driver de teclado
-	mt_kbd_init();
+    // Inicializar driver de mouse
+    mt_mouse_init();
 
-	// Ejecutar primera tarea
-	while ( true )
-	{
-		cprintk(LIGHTCYAN, BLACK, "MTask inicializado.\n");
-		char *arg[] = { "shell", NULL };
-		shell_main(1, arg);
-	}
+    // Inicializar ttys
+	mt_setup_ttys();
+
+	//se hace visible el mouse en la posicion inicial
+	WriteCharacter();
+
+	//se marca la pestaña de la primer consola que es la primera que esta abierta
+	turnOnOFFTab(ON,1);
+    while ( true )
+    {
+        /*
+        cprintk(LIGHTCYAN, BLACK, "MTask inicializado.\n");
+        char *arg[] = { "shell", NULL };
+        shell_main(1, arg);
+        */
+    }
 }

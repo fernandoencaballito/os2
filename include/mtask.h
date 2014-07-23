@@ -21,8 +21,10 @@
 
 typedef enum { false, true } bool;
 
-typedef enum 
-{ 
+typedef struct MsgQueue_t MsgQueue_t;
+#include "tty.h"
+
+typedef enum { 
 	TaskSuspended, 
 	TaskReady, 
 	TaskCurrent, 
@@ -31,21 +33,18 @@ typedef enum
 	TaskSending, 
 	TaskReceiving, 
 	TaskTerminated 
-} 
-TaskState_t;
+} TaskState_t;
 
 typedef struct Task_t Task_t;
 
-typedef struct
-{
+typedef struct{
 	char *			name;
 	Task_t *		head;
 	Task_t *		tail;
 }
 TaskQueue_t;
 
-struct Task_t
-{
+struct Task_t{
 	char *			name;
 	TaskState_t		state;
 	unsigned		priority;
@@ -66,7 +65,8 @@ struct Task_t
 	Task_t *		from;
 	void *			msg;
 	unsigned 		size;
-	TaskQueue_t 	send_queue;
+	TaskQueue_t     send_queue;
+	Tty * 			ttyp;
 };
 
 typedef void (*TaskFunc_t)(void *arg);
@@ -118,8 +118,7 @@ void				Panic(char *msg);
 
 /* Semáforos */
 
-typedef struct
-{
+typedef struct{
 	unsigned		value;
 	TaskQueue_t *	queue;
 }
@@ -209,8 +208,7 @@ unsigned			AvailPipe(Pipe_t *p);
 
 /* Colas de mensajes */
 
-typedef struct
-{
+struct MsgQueue_t{
 	Mutex_t *		mutex_get;
 	Mutex_t *		mutex_put;
 	Semaphore_t *	sem_get;
@@ -220,8 +218,7 @@ typedef struct
 	char *			head;
 	char *			tail;
 	char *			end;
-}
-MsgQueue_t;
+} ;
 
 MsgQueue_t *		CreateMsgQueue(char *name, unsigned msg_max, unsigned msg_size, bool serialized_get, bool serialized_put);
 void				DeleteMsgQueue(MsgQueue_t *mq);
@@ -232,5 +229,6 @@ bool				PutMsgQueue(MsgQueue_t *mq, void *msg);
 bool				PutMsgQueueCond(MsgQueue_t *mq, void *msg);
 bool				PutMsgQueueTimed(MsgQueue_t *mq, void *msg, unsigned msecs);
 unsigned			AvailMsgQueue(MsgQueue_t *mq);
+
 
 #endif

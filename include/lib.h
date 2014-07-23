@@ -1,7 +1,7 @@
 #ifndef LIB_H_INCLUDED
 #define LIB_H_INCLUDED
 
-#include <sys/types.h>
+//#include <sys/types.h>
 #include <stdarg.h>
 
 /* io.asm */

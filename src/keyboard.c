@@ -161,15 +161,13 @@
 #include "keymaps/spanish.src"
 #undef keymap
 
-static const char *names[] =
-{
+static const char *names[] = {
 	"us-std",
 	"spanish",
 	NULL
 };
 
-static unsigned short *keymaps[] =
-{
+static unsigned short *keymaps[] = {
 	keymap_us_std,
 	keymap_spanish
 };
@@ -222,9 +220,13 @@ static char numpad_map[] = { 'H', 'Y', 'A', 'B', 'D', 'C', 'V', 'U', 'G', 'S', '
 
 static MsgQueue_t *scan_mq, *key_mq;
 
+void
+set_key_mq(MsgQueue_t *kmq){
+    key_mq = kmq;
+}
+
 static void 
-kbdint(unsigned irq)
-{
+kbdint(unsigned irq){
 	// Interrupción de teclado. Por ahora tomamos todo lo que viene como si fueran
 	// makes y breaks de teclas, cuando se envíen comandos al teclado (por ejemplo
 	// para prender y apagar los LEDs), habrá que impedir que entren aquí las respuestas
@@ -236,222 +238,236 @@ kbdint(unsigned irq)
 
 #if 0
 static void 
-kbd_send(unsigned data)
-{
+kbd_send(unsigned data){
     while ( inb(KBDCTL) & KBDOBF )
-		Yield();
+        Yield();
     outb(KBD, data);
 }
 
 static void 
-kbd_send_ctl(unsigned data)
-{
+kbd_send_ctl(unsigned data){
     while ( inb(KBDCTL) & KBDOBF )
-		Yield();
+        Yield();
     outb(KBDCTL, data);
 }
 #endif
 
 static void
-set_leds()
-{
+set_leds(){
 	// TODO. De todos modos no funciona en VirtualBox.
 }
 
 static unsigned
-map_key(unsigned scode)
-{
-	/* Map a scan code to an ASCII code. */
+map_key(unsigned scode){
+    /* Map a scan code to an ASCII code. */
 
-	bool caps;
-	unsigned column;
-	unsigned short *keyrow;
+    bool caps;
+    unsigned column;
+    unsigned short *keyrow;
 
-	if (scode == SLASH_SCAN && esc)
-		return '/';				/* don't map numeric slash */
+    if (scode == SLASH_SCAN && esc)
+        return '/';				/* don't map numeric slash */
 
-	keyrow = &keymap[scode * MAP_COLS];
+    keyrow = &keymap[scode * MAP_COLS];
 
-	caps = shift;
-	if ((locks & NUM_LOCK) && HOME_SCAN <= scode && scode <= DEL_SCAN)
-		caps = !caps;
-	if ((locks & CAPS_LOCK) && (keyrow[0] & HASCAPS))
-		caps = !caps;
+    caps = shift;
+    if ((locks & NUM_LOCK) && HOME_SCAN <= scode && scode <= DEL_SCAN)
+        caps = !caps;
+    if ((locks & CAPS_LOCK) && (keyrow[0] & HASCAPS))
+        caps = !caps;
 
-	if (alt)
-	{
-		column = 2;
-		if (ctrl || alt_r)
-			column = 3;			/* Ctrl + Alt == AltGr */
-		if (caps)
-			column = 4;
-	}
-	else
-	{
-		column = 0;
-		if (caps)
-			column = 1;
-		if (ctrl)
-			column = 5;
-	}
-	return keyrow[column] & ~HASCAPS;
+    if (alt)
+    {
+        column = 2;
+        if (ctrl || alt_r)
+            column = 3;			/* Ctrl + Alt == AltGr */
+        if (caps)
+            column = 4;
+    }
+    else
+    {
+        column = 0;
+        if (caps)
+            column = 1;
+        if (ctrl)
+            column = 5;
+    }
+    return keyrow[column] & ~HASCAPS;
 }
 
 static unsigned
 make_break(unsigned scode)
 {
-	/* This routine can handle keyboards that interrupt only on key depression,
-	 * as well as keyboards that interrupt on key depression and key release.
-	 * For efficiency, the interrupt routine filters out most key releases.
-	 */
+    /* This routine can handle keyboards that interrupt only on key depression,
+     * as well as keyboards that interrupt on key depression and key release.
+     * For efficiency, the interrupt routine filters out most key releases.
+     */
 
-	unsigned ch;
-	bool make, escape;
+    unsigned ch;
+    bool make, escape;
 
-	/* High-order bit set on key release. */
-	make = (scode & KEY_RELEASE) == 0;	/* true if pressed */
+    /* High-order bit set on key release. */
+    make = (scode & KEY_RELEASE) == 0;	/* true if pressed */
 
-	ch = map_key(scode &= ASCII_MASK);	/* map to ASCII */
+    ch = map_key(scode &= ASCII_MASK);	/* map to ASCII */
 
-	escape = esc;				/* Key is escaped?  (true if added since the XT) */
-	esc = false;
+    escape = esc;				/* Key is escaped?  (true if added since the XT) */
+    esc = false;
 
-	switch (ch)
-	{
-		case CTRL:				/* Left or right control key */
-			*(escape ? &ctrl_r : &ctrl_l) = make;
-			ctrl = ctrl_l | ctrl_r;
-			break;
-		case SHIFT:			/* Left or right shift key */
-			*(scode == RSHIFT_SCAN ? &shift_r : &shift_l) = make;
-			shift = shift_l | shift_r;
-			break;
-		case ALT:				/* Left or right alt key */
-			*(escape ? &alt_r : &alt_l) = make;
-			alt = alt_l | alt_r;
-			break;
-		case CALOCK:			/* Caps lock - toggle on 0 -> 1 transition */
-			if (!caps_down && make)
-			{
-				locks ^= CAPS_LOCK;
-				set_leds();
-			}
-			caps_down = make;
-			break;
-		case NLOCK:			/* Num lock */
-			if (!num_down && make)
-			{
-				locks ^= NUM_LOCK;
-				set_leds();
-			}
-			num_down = make;
-			break;
-		case SLOCK:			/* Scroll lock */
-			if (!scroll_down && make)
-			{
-				locks ^= SCROLL_LOCK;
-				set_leds();
-			}
-			scroll_down = make;
-			break;
-		case EXTKEY:			/* Escape keycode */
-			esc = true;			/* Next key is escaped */
-			return NONE;
-		default:				/* A normal key */
-			return make ? ch : NONE;
-	}
+    switch (ch)
+    {
+        case CTRL:				/* Left or right control key */
+            *(escape ? &ctrl_r : &ctrl_l) = make;
+            ctrl = ctrl_l | ctrl_r;
+            break;
+        case SHIFT:			/* Left or right shift key */
+            *(scode == RSHIFT_SCAN ? &shift_r : &shift_l) = make;
+            shift = shift_l | shift_r;
+            break;
+        case ALT:				/* Left or right alt key */
+            *(escape ? &alt_r : &alt_l) = make;
+            alt = alt_l | alt_r;
+            break;
+        case CALOCK:			/* Caps lock - toggle on 0 -> 1 transition */
+            if (!caps_down && make)
+            {
+                locks ^= CAPS_LOCK;
+                set_leds();
+            }
+            caps_down = make;
+            break;
+        case NLOCK:			/* Num lock */
+            if (!num_down && make)
+            {
+                locks ^= NUM_LOCK;
+                set_leds();
+            }
+            num_down = make;
+            break;
+        case SLOCK:			/* Scroll lock */
+            if (!scroll_down && make)
+            {
+                locks ^= SCROLL_LOCK;
+                set_leds();
+            }
+            scroll_down = make;
+            break;
+        case EXTKEY:			/* Escape keycode */
+            esc = true;			/* Next key is escaped */
+            return NONE;
+        default:				/* A normal key */
+            return make ? ch : NONE;
+    }
 
-	return NONE;
+    return NONE;
 }
 
 static void
-input_task(void *arg)
-{
-	unsigned char scode;
-	unsigned ch;
+input_task(void *arg){
+    unsigned char scode;
+    unsigned ch;
+	int tty_num=-1;
 
-	while (true)
-	{
-		if ( !GetMsgQueue(scan_mq, &scode) )
-			continue;
+    while (true)
+    {
+	tty_num=-1;
+        if ( !GetMsgQueue(scan_mq, &scode) )
+            continue;
 
-		/* Perform make/break processing. */
-		if ( (ch = make_break(scode)) == NONE )
-			continue;
+        /* Perform make/break processing. */
+        if ( (ch = make_break(scode)) == NONE )
+            continue;
 
-		if (1 <= ch && ch <= 0xFF)
-			/* A normal character. */
-			PutMsgQueue(key_mq, &ch);
-		else if (HOME <= ch && ch <= INSRT)
-		{
-			/* An ASCII escape sequence generated by the numeric pad. */
-			unsigned c = ESC;
-			PutMsgQueue(key_mq, &c);
-			c = '[';
-			PutMsgQueue(key_mq, &c);
-			c = numpad_map[ch - HOME];
-			PutMsgQueue(key_mq, &c);
-		}
-		else
-		{
-			// Aquí deberían procesarse teclas especiales de procesamiento
-			// inmediato como Fn, Alt-Fn, etc.
-		}
-	}
+        if (1 <= ch && ch <= 0xFF)
+            /* A normal character. */
+            PutMsgQueue(key_mq, &ch);
+        else if (HOME <= ch && ch <= INSRT)
+        {
+            /* An ASCII escape sequence generated by the numeric pad. */
+            unsigned c = ESC;
+            PutMsgQueue(key_mq, &c);
+            c = '[';
+            PutMsgQueue(key_mq, &c);
+            c = numpad_map[ch - HOME];
+            PutMsgQueue(key_mq, &c);
+        }else{
+            // Aquí deberían procesarse teclas especiales de procesamiento
+            // inmediato como Fn, Alt-Fn, etc.
+            switch( ch ){
+                case AF1:
+                    tty_num = 0;
+                    break;
+                case AF2:
+                    tty_num = 1;
+                    break;
+                case AF3:
+                    tty_num = 2;
+                    break;
+                case AF4:
+                    tty_num = 3;
+                    break;
+            }
+            if(tty_num != -1){
+                clearAllTabs();
+                turnOnOFFTab(ON, tty_num+1);
+                 turnOffMouse();
+                switch_focus(tty_num);
+                turnOnMouse();
+            }
+        }
+    }
 }
 
 // Interfaz
 
 bool 
-mt_kbd_getch_timed(unsigned *c, unsigned timeout)
-{
-	*c = 0;
-	return GetMsgQueueTimed(key_mq, c, timeout);
+mt_kbd_getch_timed(unsigned *c, unsigned timeout){
+    *c = 0;
+    return GetMsgQueueTimed(key_mq, c, timeout);
 }
 
 bool 
-mt_kbd_getch(unsigned *c)
-{
-	*c = 0;
-	return GetMsgQueue(key_mq, c);
+mt_kbd_getch(unsigned *c){
+    *c = 0;
+    return GetMsgQueue(mt_curr_task->ttyp->key_mq, c);
 }
 
 void
-mt_kbd_init(void)
-{
-	keymap = keymaps[0];
-	kbd_name = names[0];
-	scan_mq = CreateMsgQueue("Scan code", KBDBUFSIZE, 1, false, false);
-	key_mq = CreateMsgQueue("Input key", KBDBUFSIZE, 1, true, false);
-	Ready(CreateTask(input_task, 0, NULL, "Input task", INPUTPRIO));
-	mt_set_int_handler(KBDINT, kbdint);
-	mt_enable_irq(KBDINT);
+mt_kbd_init(void){
+    keymap = keymaps[0];
+    kbd_name = names[0];
+    scan_mq = CreateMsgQueue("Scan code", KBDBUFSIZE, 1, false, false);
+    key_mq = CreateMsgQueue("Input key", KBDBUFSIZE, 1, true, false);
+    Ready(CreateTask(input_task, 0, NULL, "Input task", INPUTPRIO));
+    mt_set_int_handler(KBDINT, kbdint);
+    mt_enable_irq(KBDINT);
+}
+
+MsgQueue_t*
+mt_new_kbd_queue(void){
+    return CreateMsgQueue("Input", KBDBUFSIZE, 1, true, false);
 }
 
 const char *
-mt_kbd_getlayout(void)
-{
-	return kbd_name;
+mt_kbd_getlayout(void){
+    return kbd_name;
 }
 
 bool
-mt_kbd_setlayout(const char *name)
-{
-	unsigned n;
-	const char *p;
+mt_kbd_setlayout(const char *name){
+    unsigned n;
+    const char *p;
 
-	for ( n = 0 ; (p = names[n]) ; n++ )
-		if ( strcmp(name, p) == 0 )
-		{
-			kbd_name = p;
-			keymap = keymaps[n];
-			return true;
-		}
-	return false;
+    for ( n = 0 ; (p = names[n]) ; n++ )
+        if ( strcmp(name, p) == 0 ){
+            kbd_name = p;
+            keymap = keymaps[n];
+            return true;
+        }
+    return false;
 }
 
 const char **
-mt_kbd_layouts(void)
-{
-	return names;
+mt_kbd_layouts(void){
+    return names;
 }

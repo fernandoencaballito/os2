@@ -1,12 +1,12 @@
 INCLUDE_DIR = include/
-GCC_FLAGS = -Wall -fno-stack-protector -fno-builtin -m32 -I $(INCLUDE_DIR)
+GCC_FLAGS = -Wall -g -fno-stack-protector -fno-builtin -m32 -I $(INCLUDE_DIR)
 NASM_FLAGS = -f elf32 -I $(INCLUDE_DIR)
 
 # kstart debe ser el primero pues debe linkearse al principio del ejecutable
 MODULES = kstart libasm interrupts kernel gdt_idt irq string sprintf malloc \
-			cons io timer queue math sem mutex monitor pipe msgqueue rand \
-			filo sfilo xfilo keyboard printk getline shell split setkb camino \
-			camino_ns atoi prodcons afilo divz
+		  cons io timer queue math sem mutex monitor pipe msgqueue rand \
+		  filo sfilo xfilo keyboard printk getline shell split setkb camino \
+		  camino_ns atoi prodcons afilo divz mouse
 
 OBJECTS = $(MODULES:%=obj/%.o)
 mtask: $(OBJECTS)
@@ -22,7 +22,7 @@ clean:
 	rm -rf iso
 
 obj/%.o: src/%.asm
-	gas $(NASM_FLAGS) $< -o $@
+	nasm $(NASM_FLAGS) $< -o $@
 
 obj/%.o: src/%.c
 	cc $(GCC_FLAGS) -c $< -o $@
@@ -36,7 +36,7 @@ dep/%.d: src/%.c
 	cc $(GCC_FLAGS) $< -MM -MT 'obj/$*.o $@' > $@
 
 dep/%.d: src/%.asm
-	gas $(NASM_FLAGS) $< -M -o 'obj/$*.o $@' > $@
+	nasm $(NASM_FLAGS) $< -M -o 'obj/$*.o $@' > $@
 
 DEPS = $(MODULES:%=dep/%.d)
--include $(DEPS)
+	-include $(DEPS)
